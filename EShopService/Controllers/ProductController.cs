@@ -1,83 +1,74 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using EShopService.Models;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
-namespace EShopService.Controllers
+[ApiController]
+[Route("api/[controller]")]
+public class ProductController : ControllerBase
 {
-    public class ProductController : Controller
+    private static readonly List<Category> Categories = new()
     {
-        // GET: ProductController
-        public ActionResult Index()
-        {
-            return View();
-        }
+        new Category { CategoryId = 1, CategoryName = "Elektronika", CreatedAt = DateTime.UtcNow, CreatedBy = Guid.NewGuid() },
+        new Category { CategoryId = 2, CategoryName = "Dom i ogród", CreatedAt = DateTime.UtcNow, CreatedBy = Guid.NewGuid() }
+    };
 
-        // GET: ProductController/Details/5
-        public ActionResult Details(int id)
-        {
-            return View();
-        }
+    private static readonly List<Product> Products = new();
 
-        // GET: ProductController/Create
-        public ActionResult Create()
-        {
-            return View();
-        }
+    [HttpGet]
+    public ActionResult<IEnumerable<Product>> GetAll()
+    {
+        return Products.Where(p => !p.Deleted).ToList();
+    }
 
-        // POST: ProductController/Create
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Create(IFormCollection collection)
-        {
-            try
-            {
-                return RedirectToAction(nameof(Index));
-            }
-            catch
-            {
-                return View();
-            }
-        }
+    [HttpGet("{id}")]
+    public ActionResult<Product> GetById(int id)
+    {
+        var product = Products.FirstOrDefault(p => p.Id == id && !p.Deleted);
+        return product == null ? NotFound() : Ok(product);
+    }
 
-        // GET: ProductController/Edit/5
-        public ActionResult Edit(int id)
-        {
-            return View();
-        }
+    [HttpPost]
+    public ActionResult<Product> Create(Product product)
+    {
+        product.Id = Products.Count > 0 ? Products.Max(p => p.Id) + 1 : 1;
+        product.CreatedAt = DateTime.UtcNow;
+        product.CreatedBy = Guid.NewGuid();
+        product.Category = Categories.FirstOrDefault(c => c.CategoryId == product.Category.CategoryId);
 
-        // POST: ProductController/Edit/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Edit(int id, IFormCollection collection)
-        {
-            try
-            {
-                return RedirectToAction(nameof(Index));
-            }
-            catch
-            {
-                return View();
-            }
-        }
+        Products.Add(product);
+        return CreatedAtAction(nameof(GetById), new { id = product.Id }, product);
+    }
 
-        // GET: ProductController/Delete/5
-        public ActionResult Delete(int id)
-        {
-            return View();
-        }
+    [HttpPut("{id}")]
+    public IActionResult Update(int id, Product updated)
+    {
+        var existing = Products.FirstOrDefault(p => p.Id == id && !p.Deleted);
+        if (existing == null) return NotFound();
 
-        // POST: ProductController/Delete/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Delete(int id, IFormCollection collection)
-        {
-            try
-            {
-                return RedirectToAction(nameof(Index));
-            }
-            catch
-            {
-                return View();
-            }
-        }
+        existing.Name = updated.Name;
+        existing.Ean = updated.Ean;
+        existing.Price = updated.Price;
+        existing.Stock = updated.Stock;
+        existing.Sku = updated.Sku;
+        existing.Category = Categories.FirstOrDefault(c => c.CategoryId == updated.Category.CategoryId);
+        existing.UpdatedAt = DateTime.UtcNow;
+        existing.UpdatedBy = Guid.NewGuid();
+
+        return NoContent();
+    }
+
+    [HttpDelete("{id}")]
+    public IActionResult Delete(int id)
+    {
+        var product = Products.FirstOrDefault(p => p.Id == id && !p.Deleted);
+        if (product == null) return NotFound();
+
+        product.Deleted = true;
+        product.UpdatedAt = DateTime.UtcNow;
+        product.UpdatedBy = Guid.NewGuid();
+
+        return NoContent();
     }
 }
